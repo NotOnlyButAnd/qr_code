@@ -7,6 +7,10 @@
 # будут содержаться спец символы и буквы русского алфавита
 #########################
 
+# библиотека для рисования
+from PIL import Image, ImageDraw, ImageColor, ImageFont
+
+
 # на входе - байтовое представление строки
 # на выходе - бинарное представление
 def binaryEncodingUTF(my_bytes):
@@ -20,6 +24,22 @@ def binaryEncodingUTF(my_bytes):
             binary_enc += temp_bin
         # binary_enc += " | "
     return binary_enc
+
+
+def get_mask(x, y):
+    # 0 маска
+    return (x + y) % 2
+    # 2 маска
+    # return x % 3
+
+
+def invert(num):
+    if num == 0:
+        return 1
+    elif num == 1:
+        return 0
+    else:
+        return -1
 
 
 # Строка данных для кодирования (пример, общий вид)
@@ -177,7 +197,7 @@ galoi_256 = [1, 2, 4, 8, 16, 32, 64, 128, 29, 58, 116, 232, 205, 135, 19, 38,
 generic_poly = [41, 173, 145, 152, 216, 31, 179, 182, 50, 48, 110, 86, 239, 96, 222,
                 125, 42, 173, 226, 193, 224, 130, 156, 37, 251, 216, 238, 40, 192, 180]
 for block in blocks:
-    print("///////////// start of block ///////////////////")
+    #print("///////////// start of block ///////////////////")
     count_bytes = int(len(block) / 8)
     length_arr = max(30, count_bytes)
     # print(length_arr)
@@ -188,13 +208,13 @@ for block in blocks:
             block = block[8::]
         else:
             arr.append("0"*8)   # добавляем нулевые байты если данные кончились
-    print(arr)
-    print(len(arr))
+    #print(arr)
+    #print(len(arr))
 
     for i in range(0, count_bytes):
         generic_poly_copy = generic_poly.copy()
         A = arr[i]
-        print(f"AAAAAAAA: {A}")
+        #print(f"AAAAAAAA: {A}")
         # удаляем первый элемент, и двигаем все оставшиеся влево на один
         # print(f"old_arr: {arr}")
         for j in range(0, count_bytes - 1):
@@ -230,11 +250,11 @@ for block in blocks:
                         arr[j] = arr[j][:k:] + '1' + arr[j][k + 1::]
                 # print(f"arr[j] double SUM:          {arr[j]}")
 
-            print(f"/// Generic + B: {generic_poly_copy}")
-            print(f"/// cur ARR result (correction bytes): {arr}")
+            #print(f"/// Generic + B: {generic_poly_copy}")
+            #print(f"/// cur ARR result (correction bytes): {arr}")
 
-    print(f"//////////// ARR result (correction bytes): {arr}")
-    print("///////////// end of block ///////////////////")
+    #print(f"//////////// ARR result (correction bytes): {arr}")
+    #print("///////////// end of block ///////////////////")
     correction_blocks.append(arr.copy())
 
 # print(f"\nblocks: {blocks}\nblocks_copy:{blocks_copy}")
@@ -281,3 +301,506 @@ for i in range(0,30):
         ready_data_flow.append(correction_blocks[j][i])
 
 print(f"DATA FLOW (data + correct, len - {len(ready_data_flow)}): {ready_data_flow}")   # 733 - 253 = 480 B добавлено было, а это и есть 16 блоков по 30 байт
+
+
+############################################
+# НОВЫЙ СПОСОБ ПРЕДСТАВЛЕНИЯ КОДА!!!
+############################################
+# метод выводит матрицу в файл там удобнее смотреть
+def print_matr_file(matrix):
+    output = open('matrix.txt', 'w')
+    for strin in matrix:
+        output.write(str(strin) + "\n")
+    output.close()
+
+
+def color_str_matr(matrix, color, strings=[0]):
+    for string in strings:
+        matrix[string] = [color] * len(matrix[string])
+
+
+def color_col_matr(matrix, color, columns=[0]):
+    for column in columns:
+        for string in range(len(matrix)):
+            matrix[string][column] = color
+
+
+def color_empty_rect_matr(matrix, color, coordinates=[0, 0, 3, 3]):
+    # рисуем, при смещении по иксу
+    for elem in range(coordinates[0], coordinates[2] + 1):
+        matrix[coordinates[1]][elem] = color
+        matrix[coordinates[3]][elem] = color
+    # рисуем, при смещении по игреку
+    for elem in range(coordinates[1], coordinates[3] + 1):
+        matrix[elem][coordinates[0]] = color
+        matrix[elem][coordinates[2]] = color
+
+
+def color_rect_matr(matrix, color, coordinates=[0, 0, 3, 3]):
+    # первый фор - по иксу
+    for i in range(coordinates[0], coordinates[2] + 1):
+        # второй фор - по игреку
+        for j in range(coordinates[1], coordinates[3] + 1):
+            matrix[j][i] = color
+
+
+def color_vert_line_matr(matrix, color, coordinates=[0, 0, 0, 3]):
+    for i in range(coordinates[1], coordinates[3] + 1):
+        matrix[i][coordinates[0]] = color
+
+
+def color_horiz_line_matr(matrix, color, coordinates=[0, 0, 3, 0]):
+    for i in range(coordinates[0], coordinates[2] + 1):
+        matrix[coordinates[1]][i] = color
+
+
+def draw_qr(matrix):
+    im_wid_heig = 890
+    module = im_wid_heig / 89  # pixels - ширина длина блока модуля
+    image = Image.new("RGB", (im_wid_heig, im_wid_heig))
+    draw = ImageDraw.Draw(image)
+    # заливаем белый фон
+    draw.rectangle((0, 0, im_wid_heig, im_wid_heig), fill=ImageColor.getrgb("white"))
+    # рисуем блоки
+    for i in range(len(matrix)):
+        for j in range(len(matrix)):
+            if matrix[i][j] == 1:
+                draw.rectangle((j * module, i * module, j * module + module, i * module + module), fill=ImageColor.getrgb("black"))
+    image.save("my_qr.png", "PNG")
+
+
+def add_up(c_x, c_y, matr, data_f, log_file, is_end_f):
+    while c_y != 3:
+        # рисуем текущий уровень
+        if matr[c_y][c_x] == 2:
+            # print(f"data_flow[0] = {data_flow[0]}")
+            if get_mask(c_x, c_y) == 0 and not is_end_f:
+                matr[c_y][c_x] = invert(int(data_f[0]))
+            elif get_mask(c_x, c_y) == 1 and not is_end_f:
+                matr[c_y][c_x] = int(data_f[0])
+            # если уже данных нет, то единица если инвертируем
+            elif get_mask(c_x, c_y) == 0 and is_end_f:
+                matr[c_y][c_x] = 1
+            elif get_mask(c_x, c_y) == 1 and is_end_f:
+                matr[c_y][c_x] = 0
+
+            # проверяем, конец ли данных
+            if len(data_f) == 1:
+                is_end_f = True
+                data_f = ""
+                print("!!!END OF FLOW!!!")
+            elif len(data_f) > 1:
+                log_file.write(
+                    f"\nif 1: ({c_x}, {c_y}): {matr[c_y][c_x]} (data_flow - {data_f[0]}, mask - {get_mask(c_x, c_y)}, end? - {is_end_f}")
+                data_f = data_f[1::]  # отсекаем зарисованный символ
+                log_file.write(f"\nnew data flow - {data_f[:10:]}...")
+
+            # print(f"data_flow[0] = {data_flow[0]} END")
+        if matr[c_y][c_x - 1] == 2:
+            # print(f"data_flow[0] = {data_flow[0]}")
+            if get_mask(c_x - 1, c_y) == 0 and not is_end_f:
+                matr[c_y][c_x - 1] = invert(int(data_f[0]))
+            elif get_mask(c_x - 1, c_y) == 1 and not is_end_f:
+                matr[c_y][c_x - 1] = int(data_f[0])
+            # если уже данных нет, то единица если инвертируем
+            elif get_mask(c_x - 1, c_y) == 0 and is_end_f:
+                matr[c_y][c_x - 1] = 1
+            elif get_mask(c_x - 1, c_y) == 1 and is_end_f:
+                matr[c_y][c_x - 1] = 0
+
+            # проверяем, конец ли данных
+            if len(data_f) == 1:
+                is_end_f = True
+                data_f = ""
+                print("!!!END OF FLOW!!!")
+            elif len(data_f) > 1:
+                log_file.write(
+                    f"\nif 2: ({c_x - 1}, {c_y}): {matr[c_y][c_x - 1]} (data_flow - {data_f[0]}, mask - {get_mask(c_x - 1, c_y)}, end? - {is_end_f})")
+                data_f = data_f[1::]  # отсекаем зарисованный символ
+                log_file.write(f"\nnew data flow - {data_f[:10:]}...")
+
+        c_y -= 1
+    return data_f, is_end_f
+
+
+def add_down(c_x, c_y, matr, data_f, log_file, is_end_f):
+    while c_y != 85:
+        # рисуем текущий уровень
+        if matr[c_y][c_x] == 2:
+            # print(f"data_flow[0] = {data_flow[0]}")
+            if get_mask(c_x, c_y) == 0 and not is_end_f:
+                matr[c_y][c_x] = invert(int(data_f[0]))
+            elif get_mask(c_x, c_y) == 1 and not is_end_f:
+                matr[c_y][c_x] = int(data_f[0])
+            # если уже данных нет, то единица если инвертируем
+            elif get_mask(c_x, c_y) == 0 and is_end_f:
+                matr[c_y][c_x] = 1
+            elif get_mask(c_x, c_y) == 1 and is_end_f:
+                matr[c_y][c_x] = 0
+
+            # проверяем, конец ли данных
+            if len(data_f) == 1:
+                is_end_f = True
+                data_f = ""
+                print("!!!END OF FLOW!!!")
+            elif len(data_f) > 1:
+                log_file.write(
+                    f"\nif 1: ({c_x}, {c_y}): {matr[c_y][c_x]} (data_flow - {data_f[0]}, mask - {get_mask(c_x, c_y)}, end? - {is_end_f}")
+                data_f = data_f[1::]  # отсекаем зарисованный символ
+                log_file.write(f"\nnew data flow - {data_f[:10:]}...")
+
+            # print(f"data_flow[0] = {data_flow[0]} END")
+        if matr[c_y][c_x - 1] == 2:
+            # print(f"data_flow[0] = {data_flow[0]}")
+            if get_mask(c_x - 1, c_y) == 0 and not is_end_f:
+                matr[c_y][c_x - 1] = invert(int(data_f[0]))
+            elif get_mask(c_x - 1, c_y) == 1 and not is_end_f:
+                matr[c_y][c_x - 1] = int(data_f[0])
+            # если уже данных нет, то единица если инвертируем
+            elif get_mask(c_x - 1, c_y) == 0 and is_end_f:
+                matr[c_y][c_x - 1] = 1
+            elif get_mask(c_x - 1, c_y) == 1 and is_end_f:
+                matr[c_y][c_x - 1] = 0
+
+            # проверяем, конец ли данных
+            if len(data_f) == 1:
+                is_end_f = True
+                data_f = ""
+                print("!!!END OF FLOW!!!")
+            elif len(data_f) > 1:
+                log_file.write(
+                    f"\nif 2: ({c_x - 1}, {c_y}): {matr[c_y][c_x - 1]} (data_flow - {data_f[0]}, mask - {get_mask(c_x - 1, c_y)}, end? - {is_end_f})")
+                data_f = data_f[1::]  # отсекаем зарисованный символ
+                log_file.write(f"\nnew data flow - {data_f[:10:]}...")
+
+        c_y += 1
+    return data_f, is_end_f
+
+
+# строка не использ блоков, с учетом модулей отступа (по 4 с каждой стороны,
+# следовательно на сам код - 81 модуль!!!!!)
+count_modules = 89
+
+# 2 - не использ, 0 - белый, 1 - черный
+black = 1
+white = 0
+not_used = 2
+# матрица показывает, какие модули окрашены в белый, какие в черный, а какие не использованы
+def_str = [not_used] * count_modules
+used_c_1 = []
+for i in range(count_modules):
+    temp_str = def_str.copy()
+    used_c_1.append(temp_str)
+
+# ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
+# закрашиваем отступы т.е. по 4 модуля слева, справа, сверху и снизу - белые
+#########
+indents = [0, 1, 2, 3, 85, 86, 87, 88]
+indent = 4
+# верхний и нижний
+color_str_matr(used_c_1, white, indents)
+# левый и правый
+color_col_matr(used_c_1, white, indents)
+#########
+
+# ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
+# Верхний левый поисковый узор:
+#########
+# внеш черн
+color_empty_rect_matr(used_c_1, black, [4, 4, 10, 10])
+# средн бел
+color_empty_rect_matr(used_c_1, white, [5, 5, 9, 9])
+# внутр черн
+color_rect_matr(used_c_1, black, [6, 6, 8, 8])
+# внешн бел, две стороны
+color_vert_line_matr(used_c_1, white, [11, 4, 11, 11])
+color_horiz_line_matr(used_c_1, white, [4, 11, 11, 11])
+#########
+
+# ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
+# Верхний правый поисковый узор:
+#########
+# внеш черн
+color_empty_rect_matr(used_c_1, black, [78, 4, 78 + 6, 10])
+# средн бел
+color_empty_rect_matr(used_c_1, white, [79, 5, 78 + 6 - 1, 9])
+# внутр черн
+color_rect_matr(used_c_1, black, [80, 6, 78 + 6 - 2, 8])
+# внешн бел, две стороны
+color_vert_line_matr(used_c_1, white, [77, 4, 77, 11])
+color_horiz_line_matr(used_c_1, white, [77, 11, 84, 11])
+#########
+
+# ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
+# Нижний левый поисковый узор:
+#########
+# внеш черн
+color_empty_rect_matr(used_c_1, black, [4, 78, 10, 78 + 6])
+# средн бел
+color_empty_rect_matr(used_c_1, white, [5, 79, 9, 78 + 6 - 1])
+# внутр черн
+color_rect_matr(used_c_1, black, [6, 80, 8, 78 + 6 - 2])
+# внешн бел, две стороны
+color_horiz_line_matr(used_c_1, white, [4, 77, 11, 77])
+color_vert_line_matr(used_c_1, white, [11, 77, 11, 84])
+#########
+
+# ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
+# Вертикальная полоса синхронизации:
+#########
+cur_x = 10
+cur_y = 12
+is_white = False
+while used_c_1[cur_y][cur_x] == 2:
+    if is_white:
+        used_c_1[cur_y][cur_x] = white
+        is_white = False
+    else:
+        used_c_1[cur_y][cur_x] = black
+        is_white = True
+    cur_y += 1
+# print(f"cur_x: {cur_x}, cur_y: {cur_y}")
+#########
+
+# ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
+# Горизонтальная полоса синхронизации:
+#########
+cur_x = 12
+cur_y = 10
+is_white = False
+while used_c_1[cur_y][cur_x] == 2:
+    if is_white:
+        used_c_1[cur_y][cur_x] = white
+        is_white = False
+    else:
+        used_c_1[cur_y][cur_x] = black
+        is_white = True
+    cur_x += 1
+# print(f"cur_x: {cur_x}, cur_y: {cur_y}")
+#########
+
+# ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
+# Выравнивающие узоры:
+#########
+# 16 версия => 6, 26, 50, 74 - места расположения выравнивающих узоров
+# т.е. (6, 6) (6, 26) (6, 50) (6, 74) - центры выравнивающих узоров первых
+# т.е. (26, 6) (26, 26) (26, 50) (26, 74) - центры выравнивающих узоров вторых и тд...
+# чтобы не было наслоения на поисковые, не рисуем точки (6,6) (6,74) и (74,6)
+# составляем координаты выравнивающих узоров (центров их)
+flat_list = [6, 26, 50, 74]
+flat_coords = []
+for i in range(len(flat_list)):
+    for j in range(len(flat_list)):
+        flat_coords.append((flat_list[i], flat_list[j]))
+print(f"\n{flat_coords}")
+# удаляем ненужные координаты:
+del flat_coords[0]
+del flat_coords[2]
+del flat_coords[len(flat_coords) - 4]
+print(flat_coords)
+# рисуем узорчики
+for center in flat_coords:
+    # внутр точка
+    # не забываем про отступ от начала!!!
+    temp_x = indent + center[0]
+    temp_y = indent + center[1]
+    used_c_1[temp_y][temp_x] = black
+    # бел квадр
+    color_empty_rect_matr(used_c_1, white, [temp_x - 1, temp_y - 1, temp_x + 1, temp_y + 1])
+    # чер внеш квадр
+    color_empty_rect_matr(used_c_1, black, [temp_x - 2, temp_y - 2, temp_x + 2, temp_y + 2])
+#########
+
+# ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
+# дальше рисуем код версии
+# 16 - 011100 010001 011100
+ver_code = [0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0]
+index = 0
+#########
+# Вертикальный:
+for i in range(74, 77):
+    for j in range(4, 10):
+        used_c_1[j][i] = ver_code[index]
+        index += 1
+# Горизонтальный:
+index = 0
+for i in range(74, 77):
+    for j in range(4, 10):
+        used_c_1[i][j] = ver_code[index]
+        index += 1
+#########
+
+#####################################################
+# в генераторах
+# 001101 100100 011010 - 12 версия
+# код маски и уровня коррекции: 00111001 1100111 - H 2
+#####################################################
+
+# ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
+# код маски и уровня коррекции (0 и H пока что)
+# на сайте чтения кодов - 10 000 должно быть начало для H 0 (где 0 - (x + y)%2)
+# т.е если брать такую маску с сайта генерации кодов, то это будет: 10000001 1001110
+mask_cor_code = [1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0]
+# H	0	00 101 10 10001001
+# mask_cor_code = [0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1]
+# H 2   00 111 001 1100111
+# mask_cor_code = [0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1]
+
+#########
+index = 0
+# верхн левый
+for i in range(4, 13):
+    if used_c_1[12][i] == 2:
+        used_c_1[12][i] = mask_cor_code[index]
+        index += 1
+for i in range(11, 3, -1):
+    if used_c_1[i][12] == 2:
+        used_c_1[i][12] = mask_cor_code[index]
+        index += 1
+# нижн левый
+index = 0
+for i in range(84, 77, -1):
+    used_c_1[i][12] = mask_cor_code[index]
+    index += 1
+# этот бит всегда черный
+used_c_1[77][12] = black
+# верхн правый
+for i in range(77, 85):
+    used_c_1[12][i] = mask_cor_code[index]
+    index += 1
+#########
+
+# Ура. заполням данные!!!
+# начинаем с нижнего правого пустого угла
+# координаты полосы синхронизации вертикальной, кот пропускаем: cur_x = 10, cur_y = 12
+# маска 0 - (X+Y) % 2
+# считаем маску для каждого модуля (Х - столбец, Y - строка, % — остаток от деления, / — целочисленное деление)
+# если значение = 0, то инвертируем цвет. если = 1 то оставляем как есть
+log_file = open("log.txt", 'w')
+cur_x = 84
+cur_y = 84
+# преобразуем поток данных чтобы было проще оттуда данные брать
+data_flow = ""
+for byte in ready_data_flow:
+    data_flow += byte
+print(f"data_flow len: {len(data_flow)}: {data_flow}")  # 733 * 8 = 5864 - верно
+# заполняем первые 74 блока, до полосы синхронизации. т.е. 37 полос по два блока
+is_end_flow = False
+is_go_up = True
+for i in range(0, 37):
+    if is_go_up:
+        data_flow, is_end_flow = add_up(cur_x, cur_y, used_c_1, data_flow, log_file, is_end_flow)
+        cur_x -= 2
+        cur_y = 4
+        is_go_up = False
+    else:
+        data_flow, is_end_flow = add_down(cur_x, cur_y, used_c_1, data_flow, log_file, is_end_flow)
+        cur_x -= 2
+        cur_y = 84
+        is_go_up = True
+    # print(f"cur_x - {cur_x}; cur_y - {cur_y}")
+    # print(len(data_flow))
+
+
+# после вертикальной полосы синхронизации:
+cur_x = 9
+cur_y = 84
+for i in range(0, 3):
+    if is_go_up:
+        data_flow, is_end_flow = add_up(cur_x, cur_y, used_c_1, data_flow, log_file, is_end_flow)
+        cur_x -= 2
+        cur_y = 4
+        is_go_up = False
+    else:
+        data_flow, is_end_flow = add_down(cur_x, cur_y, used_c_1, data_flow, log_file, is_end_flow)
+        cur_x -= 2
+        cur_y = 84
+        is_go_up = True
+    # print(f"cur_x - {cur_x}; cur_y - {cur_y}")
+    # print(len(data_flow))
+log_file.close()
+
+# ТЕСТЫ:
+###########
+# color_empty_rect_matr(used_c_1, 1, [11, 11, 16, 13])
+# color_rect_matr(used_c_1, 1, [11, 11, 16, 13])
+###########
+
+print_matr_file(used_c_1)
+
+draw_qr(used_c_1)
+
+
+####################
+# ПЕЧАТЬ ПЕРВЫХ ДВУХ СТОЛБЦОВ (по 2 блока) в файл
+####################
+from_matr = ""
+count = 0
+tfile = open("from_matr.txt", 'w')
+for i in range(84, 12, -1):
+    if count == 8:
+        tfile.write(f" {used_c_1[i][84]}{used_c_1[i][83]}")
+        count = 2
+    else:
+        tfile.write(f"{used_c_1[i][84]}{used_c_1[i][83]}")
+        count += 2
+for i in range(13, 85):
+    if count == 8:
+        tfile.write(f" {used_c_1[i][82]}{used_c_1[i][81]}")
+        count = 2
+    else:
+        tfile.write(f"{used_c_1[i][82]}{used_c_1[i][81]}")
+        count += 2
+tfile.write("\n")
+count = 0
+for i in range(84, 12, -1):
+    if count == 8:
+        if get_mask(84, i) == 0:
+            tfile.write(f" {invert(used_c_1[i][84])}")
+        else:
+            tfile.write(f" {used_c_1[i][84]}")
+        if get_mask(83, i) == 0:
+            tfile.write(f"{invert(used_c_1[i][83])}")
+        else:
+            tfile.write(f"{used_c_1[i][83]}")
+        count = 2
+    else:
+        if get_mask(84, i) == 0:
+            tfile.write(f"{invert(used_c_1[i][84])}")
+        else:
+            tfile.write(f"{used_c_1[i][84]}")
+        if get_mask(83, i) == 0:
+            tfile.write(f"{invert(used_c_1[i][83])}")
+        else:
+            tfile.write(f"{used_c_1[i][83]}")
+        count += 2
+
+for i in range(13, 85):
+    if count == 8:
+        if get_mask(82, i) == 0:
+            tfile.write(f" {invert(used_c_1[i][82])}")
+        else:
+            tfile.write(f" {used_c_1[i][82]}")
+        if get_mask(81, i) == 0:
+            tfile.write(f"{invert(used_c_1[i][81])}")
+        else:
+            tfile.write(f"{used_c_1[i][81]}")
+        count = 2
+    else:
+        if get_mask(82, i) == 0:
+            tfile.write(f"{invert(used_c_1[i][82])}")
+        else:
+            tfile.write(f"{used_c_1[i][82]}")
+        if get_mask(81, i) == 0:
+            tfile.write(f"{invert(used_c_1[i][81])}")
+        else:
+            tfile.write(f"{used_c_1[i][81]}")
+        count += 2
+tfile.close()
+
+
+
+# print(used_c_1)
+# print(len(used_c_1[0]))
+# print(len(used_c_1))
+
