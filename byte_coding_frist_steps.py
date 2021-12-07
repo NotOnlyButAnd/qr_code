@@ -7,7 +7,6 @@
 # будут содержаться спец символы и буквы русского алфавита
 #########################
 # ЧТО СДЕЛАТЬ:
-# русские буквы, нормально кодировал чтобы и декодил
 # лого вставка, подгон по размеру холста (чтобы не сильно большой и не сильно маленький)
 # сделать проверку почти в самом конце кодирования данных, а не вылезли ли мы за предели максимума для данной версии и не нужно ли нам еще раз все рассчитать?
 # как создавать эту идентификационную посл-ть в начале
@@ -20,7 +19,7 @@ from PIL import Image, ImageDraw, ImageColor, ImageFont
 
 # на входе - байтовое представление строки
 # на выходе - бинарное представление (строка)
-def binaryEncodingUTF(my_bytes):
+def binary_encoding(my_bytes):
     binary_enc = ""
     for byte in my_bytes:
         temp_bin = bin(byte)[2::]  # отсекаем первые два символа беспонтовые эти 0b
@@ -260,33 +259,6 @@ def get_corr_bytes(blocks_data, amount_corr_bytes, gener_poly):
             corr_log.write(
                 f"|||||||||||||||||||||||\n|||||||| КОНЕЦ {i} итерации в блоке||||||\n|||||||||||||||||||||||\n\n\n")
 
-        # for i in range(count_bytes):
-        #     gen_poly_copy = gener_poly.copy()
-        #     A = arr[i]
-        #     # удаляем первый элемент, и двигаем все оставшиеся влево на один
-        #     for j in range(count_bytes - 1):
-        #         arr[j] = arr[j + 1]
-        #     arr[count_bytes - 1] = "0" * 8
-        #     if int(A, 2) != 0:
-        #         B = inverse_galoi_256[int(A, 2)]  # здесь А из строки приводится к иинтегер
-        #         for j in range(len(gen_poly_copy)):
-        #             temp = gen_poly_copy[j]
-        #             tempsum = gen_poly_copy[j] + B
-        #             gen_poly_copy[j] = (B + gen_poly_copy[j]) % 255
-        #             # находим соотв-вие из галуа 256
-        #             gen_poly_copy[j] = galoi_256[gen_poly_copy[j]]
-        #             # побитовое сложение по модулю два с arr данных
-        #             # сперва переведем в двоичный вид нормальный
-        #             gen_poly_copy[j] = bin(gen_poly_copy[j])
-        #             gen_poly_copy[j] = gen_poly_copy[j][2::]  # отрезали начало беспонтовое
-        #             if len(gen_poly_copy[j]) < 8:
-        #                 gen_poly_copy[j] = "0" * (8 - len(gen_poly_copy[j])) + gen_poly_copy[j]
-        #             for k in range(len(arr[j])):
-        #                 if (arr[j][k] == '0' and gen_poly_copy[j][k] == '0') or (
-        #                         arr[j][k] == '1' and gen_poly_copy[j][k] == '1'):
-        #                     arr[j] = arr[j][:k:] + '0' + arr[j][k + 1::]  # разрезали строку, вставили символ
-        #                 else:
-        #                     arr[j] = arr[j][:k:] + '1' + arr[j][k + 1::]
         correct_blocks.append(arr.copy())
         corr_log.write(f"########################\n######### КОНЕЦ {num_block} БЛОКА ##########\n########################\n")
         only_arrs.write(f"########################\n######### КОНЕЦ {num_block} БЛОКА ##########\n########################\n")
@@ -298,7 +270,6 @@ def get_corr_bytes(blocks_data, amount_corr_bytes, gener_poly):
 
 
 # объединение системной инфы, данных, коррекционных байтов
-#НУЖНО НЕ ПРОСТО ПОДРЯД ДОБАВЛЯТЬ, А ЕЩЕ И ПЕРЕМЕШИВАТЬ, КАК В СТАТЬЕ!!!
 def combine_sys_data_corr_bytes(data, corr_data):
     # ПРОСТО ВТУПУЮ СПЕРВА БАЙТЫ ДАННЫХ ВСЕ, ПОТОМ БАЙТЫ КОРРЕКЦИИ
     # flow = []
@@ -321,14 +292,12 @@ def combine_sys_data_corr_bytes(data, corr_data):
         for i in range(0, len(data)):
             if num_B <= len(data[i]) - 1:  # если еще есть в блоке данные с таким номером
                 ready_d_flow.append(data[i][num_B])
-                # print(f"add blocks[{i}][{num_byte}]...")
                 is_empty_d = False
         num_B += 1
     # теперь добавляем байты коррекции
     count_corr = len(corr_data[0])  # кол-во байтов коррекции в каждом блоке, оно одинаковое
     for i in range(0, count_corr):
         for j in range(0, len(corr_data)):
-            # print(f"add correction blocks[{j}][{i}]...")  # коррекционные тоже верно добавлены
             ready_d_flow.append(corr_data[j][i])
     return ready_d_flow
 
@@ -344,22 +313,22 @@ def combine_flow_bit(flow_bytes):
 # кодовые слова-заполнители - 11101100 и 00010001 (поочередно)
 def fill_data(data_str, c_bytes_ver):
     l_data_str = len(data_str)
-    # если длина не делится на 8, то дополняем нулями в конец, чтобы делилась
+    # если длина не делится на 8, то дополняем нулями в конец
     if l_data_str % 8 != 0:
         data_str += '0' * (len(data_str) % 8)
-    t_count_bytes = len(data_str) / 8   # сколько байт у нас щас есть?
+    t_count_bytes = len(data_str) / 8   # сколько байт у нас сейчас есть?
     fl = t_count_bytes < c_bytes_ver    # флаг проверки, меньше ли у нас байтов, чем нужно для версии
     fill_code_word = "11101100"
     while fl:
         if fill_code_word == "11101100":
             data_str += "11101100"
             fill_code_word = "00010001"
-            t_count_bytes = len(data_str) / 8  # сколько байт у нас щас есть?
+            t_count_bytes = len(data_str) / 8  # сколько байт у нас сейчас есть?
             fl = t_count_bytes < c_bytes_ver
         else:
             data_str += "00010001"
             fill_code_word = "11101100"
-            t_count_bytes = len(data_str) / 8  # сколько байт у нас щас есть?
+            t_count_bytes = len(data_str) / 8  # сколько байт у нас сейчас есть?
             fl = t_count_bytes < c_bytes_ver
     return data_str
 
@@ -368,38 +337,75 @@ def fill_data(data_str, c_bytes_ver):
 # encoding_string = "s15Njg81Ldj64LvzkH8A|\"01.11.2021 21:29:25\"|\"36/1\"|1|\"Компьютерные сети\"|\"Приходько Татьяна Александровна\""
 # encoding_string = "I love you, Dashen'ka! <3"
 #encoding_string = "s15Njg81Ldj64LvzkH8A|\"01.11.2021 21:29:25\"|\"36/1\"|1|\"Computer net\"|\"Prihod'ko Tatyana Alexandrovna\""
-encoding_string = "I <3 Department of Information Tecnology (KIT's)"
+
+
+# encoding_string = "1s20GasF0159zZ1v34ar|\"26.11.2021 17:12:45\"|\"39/2\"|4|\"Технологии проектирования ПО\"|\"Добровольская Наталья Юрьевна\""
+
+# encoding_string = "https://ru.wikipedia.org/wiki/QR-%D0%BA%D0%BE%D0%B4"
+
+# СУДЕБНЫЙ ИСК, ПРИМЕРНО
+# encoding_string = "Краснодарский краевой суд | Агибалова В.О. | Иванов И.И. | Петрова А.В, Фёдоров П.К. | Исковое заявление о задолженности по алиментам"
 
 ##############################
 # побайтовое кодирование
 ##############################
+# encoding_string = "Я <3 КИТ"
+# encoding_string = "Проверка, раз раз. Это текст, QR CODE РУЛИТ!"
+# encoding_string = "+79529762139"
+# encoding_string = "mailto:kerell.arminin@gmail.com?subject=Hello%20from%20KIRILL"
+
+# для кодирования русских букв необходимо переводить их в percent encoding - знак % и шестнадцатиричное представление буквы в UTF-8
+# encoding_string = "mailto:kerell.arminin@gmail.com?subject=%D0%9F%D1%80%D0%B8%D0%B2%D0%B5%D1%82%20%D0%B8%D0%B7%20%D0%9A%D1%83%D0%B1%D0%93%D0%A3!&body=%D0%9E%D1%82%D0%BB%D0%B8%D1%87%D0%BD%D0%BE%20:-)"
+
+# телефон деканата
+# encoding_string = "tel:+78612199578"
+
+# деканат контакт
+# BEGIN:VCARD
+# N:Smith;John;
+# TEL;TYPE=work,VOICE:(111) 555-1212
+# TEL;TYPE=home,VOICE:(404) 386-1017
+# TEL;TYPE=fax:(866) 408-1212
+# EMAIL:smith.j@smithdesigns.com
+# ORG:Smith Designs LLC
+# TITLE:Lead Designer
+# ADR;TYPE=WORK,PREF:;;151 Moore Avenue;Grand Rapids;MI;49503;United States of America
+# URL:https://www.smithdesigns.com
+# VERSION:3.0
+# END:VCARD
+
+# деканат СМС
+encoding_string = "smsto:+78612199578:когда будет готово расписание?"
+
+# wifi у меня дома WIFI:T:WPA;S:mynetwork;P:mypass;;
+encoding_string = "WIFI:T:WPA;S:ASUS_6C;P:zHvQJeq1;;"
+
 # получаем байтовое представление UTF-8
-bytes_encoded = encoding_string.encode(encoding='ascii', errors='replace')
+bytes_encoded = encoding_string.encode(encoding='utf8', errors='replace')
 
 # получаем бинарное представление UTF-8
-binary_encoded = binaryEncodingUTF(bytes_encoded)
+binary_encoded = binary_encoding(bytes_encoded)
 
 # выводим все полученные данные чтобы поглядеть на правильность
 print(f"Исходная строка: \"{encoding_string}\"")
 print(f"Длина исходной строки: {len(encoding_string)}")
-print(f"Кол-во русских букв: {count_letters_ru(encoding_string)}")
+# print(f"Кол-во русских букв: {count_letters_ru(encoding_string)}")
 print(f"\nBytes encoded string (utf_8): {bytes_encoded}")
-print(f"Bytes list [0:2]: {list(bytes_encoded[0:2])}")
+# print(f"Bytes list [0:2]: {list(bytes_encoded[0:2])}")
 # for i in bytes_encoded:
 #     print(bin(i))
 # out = open('out.txt', 'w')
 # out.write(str(bytes_encoded))
 # out.close()
-print(f"\nСтрока в бинарной кодировке: {binary_encoded}")
+print(f"\nБайты данных:\n{divide_by_bytes_str(binary_encoded)}")
+print(f"\nСтрока в бинарной кодировке:\n{binary_encoded}")
 
 # количество данных в битах
 bit_amount_data = len(binary_encoded)
-
 print(f"Длина строки в бинарной кодировке (кол-во бит данных): {bit_amount_data}")
 
 # количество данных в байтах
-byte_amount_data = int(len(binary_encoded) / 8)   # В байтах количество данных закодированных
-
+byte_amount_data = int(len(binary_encoded) / 8)
 print(f"Количество байт в бинарной кодировке: {byte_amount_data}")
 
 # пусть будем делать код, который всегда имеет уровень коррекции ошибок H - высокий
@@ -413,13 +419,13 @@ max_data_amount_h_corr = [72 - 16, 128 - 16, 208 - 16, 288 - 16, 368 - 16, 480 -
 
 
 # определяем, какая версия нам нужна с уровнем коррекции H
-version = get_version(max_data_amount_h_corr, bit_amount_data)   # сюда запишем номер версии, которая нам нужна
+version = get_version(max_data_amount_h_corr, bit_amount_data)
 print(f"\nВерсия кода для ваших данных ({bit_amount_data} bit): {version}")
 
 # максимальное кол-во байтов данных для версии
 max_count_bytes_for_ver = (max_data_amount_h_corr[version - 1] + 16) / 8
 
-# Уровыень коррекции, Метод кодирования (байтовый)
+# Уровень коррекции, Метод кодирования (байтовый)
 correction_level = 'H'
 encoding_method = "0100"
 
@@ -468,10 +474,10 @@ amount_data_in_block = int(byte_amount_data / amount_blocks)
 # сколько байт осталось?
 amount_data_in_block_remains = byte_amount_data % amount_blocks
 
-print(f"\nНужно {amount_blocks} блоков данных. В каждом блоке по {amount_data_in_block} байтов. Остаток: {amount_data_in_block_remains}")
-
 # создаем массив блоков информации (сколько байт данных в каждом блоке)
 blocks = get_blocks(amount_data_in_block, amount_blocks, amount_data_in_block_remains)
+
+print(f"\nНужно {amount_blocks} блоков данных. В каждом блоке по {amount_data_in_block} байтов. Остаток: {amount_data_in_block_remains}")
 print(f"Блоки данных (байты): {blocks}")
 
 ################
@@ -497,9 +503,7 @@ corr_bytes_by_block_h = [17, 28, 22, 16, 22, 28, 26, 26, 24, 28,
 
 # кол-во байтов коррекции для нашего случая:
 amount_corr_bytes_by_block = corr_bytes_by_block_h[version - 1]
-print(f"\nКол-во байтов коррекции на 1 блок данных: {amount_corr_bytes_by_block}")
 
-# !!!!!! КАК ПРОВЕРИТЬ??? !!!!!!
 # генерирующие многочлены. Ключ - кол-во байтов коррекции, знач - коэффициенты полинома
 generic_polys = {7: [87, 229, 146, 149, 238, 102, 21],
                  10: [251, 67, 46, 61, 118, 70, 64, 94, 32, 45],
@@ -520,7 +524,7 @@ generic_polys = {7: [87, 229, 146, 149, 238, 102, 21],
                  30: [41, 173, 145, 152, 216, 31, 179, 182, 50, 48, 110, 86, 239, 96, 222, 125, 42, 173, 226, 193, 224,
                       130, 156, 37, 251, 216, 238, 40, 192, 180]}
 
-# поля Галуа (пока из статьи на хабре
+# поля Галуа
 inverse_galoi_256 = [None, 0, 1, 25, 2, 50, 26, 198, 3, 223, 51, 238, 27, 104, 199, 75,
                      4, 100, 224, 14, 52, 141, 239, 129, 28, 193, 105, 248, 200, 8, 76, 113,
                      5, 138, 101, 47, 225, 36, 15, 33, 53, 147, 142, 218, 240, 18, 130, 69,
@@ -556,15 +560,19 @@ galoi_256 = [1, 2, 4, 8, 16, 32, 64, 128, 29, 58, 116, 232, 205, 135, 19, 38,
 
 # полином для нашего случая:
 gen_poly = generic_polys[amount_corr_bytes_by_block]
-print(f"Генерирующий многочлен ({amount_corr_bytes_by_block}): {gen_poly}")
 
 # считаем корректирующие байты
 correction_bytes = get_corr_bytes(data_block_divided, amount_corr_bytes_by_block, gen_poly)
+
+print(f"\nКол-во байтов коррекции на 1 блок данных: {amount_corr_bytes_by_block}")
+print(f"Генерирующий многочлен ({amount_corr_bytes_by_block}): {gen_poly}")
 # выводим те самые корректирующие байты по блокам
 print(f"\nБайты коррекции:")
 for b in correction_bytes:
     print(f"Corr bytes (len = {len(b)}): {b}")
 print()
+
+
 ###########################
 # Объединение блоков:
 ###########################
@@ -778,7 +786,7 @@ def draw_left_up_search(matrix, bl=1, wh=0, not_u=2):
     color_horiz_line_matr(matrix, wh, [4, 11, 11, 11])
 
 
-def draw_right_up_searh(matrix, c_modules, ind=4, bl=1, wh=0, not_u=2):
+def draw_right_up_search(matrix, c_modules, ind=4, bl=1, wh=0, not_u=2):
     # внешн бел, две стороны
     t_x = c_modules - 1 - ind - 7
     color_vert_line_matr(matrix, wh, [t_x, 4, t_x, 11])
@@ -794,7 +802,7 @@ def draw_right_up_searh(matrix, c_modules, ind=4, bl=1, wh=0, not_u=2):
     color_rect_matr(matrix, bl, [t_x, 6, t_x + 2, 8])
 
 
-def draw_left_down_searh(matrix, c_modules, ind=4, bl=1, wh=0, not_u=2):
+def draw_left_down_search(matrix, c_modules, ind=4, bl=1, wh=0, not_u=2):
     # внешн бел, две стороны
     t_y = c_modules - 1 - ind - 7
     color_horiz_line_matr(matrix, wh, [4, t_y, 11, t_y])
@@ -843,12 +851,8 @@ def draw_horiz_sync(matrix, bl=1, wh=0, not_u=2):
 def draw_flat_signs(matrix, flat, ver, ind, bl=1, wh=0, not_u=2):
     # если версия больше 6, то
     # чтобы не было наслоения на поисковые, не рисуем точки
-    # , (первая, последняя) и (последняя, первая)
+    # (первая, последняя) и (последняя, первая)
 
-    # 16 версия => 6, 26, 50, 74 - места расположения выравнивающих узоров
-    # т.е. (6, 6) (6, 26) (6, 50) (6, 74) - центры выравнивающих узоров первых
-    # т.е. (26, 6) (26, 26) (26, 50) (26, 74) - центры выравнивающих узоров вторых и тд...
-    # чтобы не было наслоения на поисковые, не рисуем точки (6,6) (6,74) и (74,6)
     # составляем координаты выравнивающих узоров (центров их)
     flat_c = []
     for i in range(len(flat)):
@@ -863,10 +867,8 @@ def draw_flat_signs(matrix, flat, ver, ind, bl=1, wh=0, not_u=2):
         del flat_c[len(flat) - 1]
         # (первая, первая) - вообще самая первая пара
         del flat_c[0]
-        # print(f"\nКоординаты выравнив узоров после удаления: {flat_c})
     # рисуем узорчики
     for center in flat_c:
-        #print(f"center: {center}")
         # внутр точка
         # не забываем про отступ от начала!!!
         t_x = ind + center[0]
@@ -976,13 +978,13 @@ flat_signs_coords = [None, [18], [22], [26], [30], [34], [6, 22, 38], [6, 24, 42
                      [6, 28, 54, 80, 106, 132, 158], [6, 32, 58, 84, 110, 136, 162], [6, 26, 54, 82, 110, 138, 166], [6, 30, 58, 86, 114, 142, 170]]
 # наши координаты выравнивающих узоров:
 flat_coords = flat_signs_coords[version - 1]
-print(f"\nКоординаты выравнивающих узоров: {flat_coords}")
-
 
 # количество модулей всего холста:
 # пустые полосы по краям: 4 + 4
 # сам холст для рисования: последнее число из массива выравнивающих узоров + 7
 count_modules = 8 + 7 + flat_coords[len(flat_coords) - 1]
+
+print(f"\nКоординаты выравнивающих узоров: {flat_coords}")
 print(f"Кол-во модулей всего холста: {count_modules}; кол-во без границ: {count_modules - 8}")
 
 
@@ -1017,13 +1019,13 @@ draw_left_up_search(used_c_1)
 # ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
 # Верхний правый поисковый узор:
 #########
-draw_right_up_searh(used_c_1, count_modules)
+draw_right_up_search(used_c_1, count_modules)
 #########
 
 # ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
 # Нижний левый поисковый узор:
 #########
-draw_left_down_searh(used_c_1, count_modules)
+draw_left_down_search(used_c_1, count_modules)
 #########
 
 # ТУТ ВСЕ ХОРОШО ЗАПОЛНЯЕТ
